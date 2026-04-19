@@ -271,7 +271,7 @@ def NN_classification(feature_data: FeatureData, best_pair: tuple[int, int]) -> 
         plt.legend()
         plt.xlabel(feature_data.feature_keys[best_pair[0]])
         plt.ylabel(feature_data.feature_keys[best_pair[1]])
-        plt.title("Classes + Misclassified Points")
+        plt.title("Classes + Misclassified Points for chosen best 2 features")
         plt.show()
 
 
