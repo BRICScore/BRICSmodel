@@ -25,7 +25,7 @@ class FeatureData():
         self.feature_files = []
         self.feature_colors = []
         self.features: np.ndarray = np.array([])
-        self.feature_count = None
+        self.feature_count: Optional[int] = None
         self.features_scaled: np.ndarray = np.array([])
 
         self.feature_index = 0
@@ -282,7 +282,20 @@ def specific_features_classifier():
     cov_matrix = np.cov(feature_data.features_scaled, rowvar=False)
     best_pair, best_value = establish_best_features(feature_data=feature_data, cov=cov_matrix)
     # SVM_classification(feature_data=feature_data, best_pair=best_pair)
-    NN_classification(feature_data=feature_data, best_pair=best_pair)
+
+    chosen_pair: tuple[int, int]
+    if feature_data.feature_count is None:
+        feature_data.feature_count = 0
+    for i in range(feature_data.feature_count):
+        print(f"{feature_data.feature_keys[i]}, {i}")
+
+    try:
+        choice = input(f'Pick two features: \"x y\", if none are picked, two best are chosen: ').split()
+        chosen_pair = (int(choice[0]),int(choice[1]))
+    except:
+        chosen_pair = best_pair
+
+    NN_classification(feature_data=feature_data, best_pair=chosen_pair)
 
 def main():
     specific_features_classifier()
