@@ -13,14 +13,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 
-EPOCHS = 20
+EPOCHS = 1
 LR = 0.0001
 BATCH_SIZE = 32
 LAYERS = 3
 SEED = 42
 HIDDEN_SIZE = 128
 DROPOUT = 0.2
-
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def parse_adc_data_line(line: str):
     def u2_to_i(b1, b2, b3):
@@ -187,7 +187,6 @@ def labeled_samples(data_segments_dir: Path):
     return samples, labels, label_to_id, id_to_label
 
 def create_dataloaders(samples, labels, batch_size=BATCH_SIZE, seed=SEED):
-    # i have no idea
     np.random.seed(seed)
     indices = np.arange(len(samples))
     labels_np = np.array(labels)
@@ -232,6 +231,7 @@ def train_model(model, train_loader, val_loader, epochs=EPOCHS, lr=LR):
         model.train()
         total_loss = 0
         for x_batch, y_batch in train_loader:
+            x_batch, y_batch = x_batch.to(DEVICE), y_batch.to(DEVICE)
             optimizer.zero_grad()
             outputs, _, _ = model(x_batch)
             loss = criterion(outputs, y_batch)
@@ -243,6 +243,7 @@ def train_model(model, train_loader, val_loader, epochs=EPOCHS, lr=LR):
         correct, total = 0, 0
         with torch.no_grad():
             for x_batch, y_batch in val_loader:
+                x_batch, y_batch = x_batch.to(DEVICE), y_batch.to(DEVICE)
                 outputs, _, _ = model(x_batch)
                 _, predicted = torch.max(outputs.data, 1)
                 total += y_batch.size(0)
@@ -263,6 +264,8 @@ def lstm_classification(data_segments_dir: Path):
         dropout=DROPOUT
     )
 
+    model.to(DEVICE)
+    print(DEVICE)
     train_model(model, train_loader, val_loader, epochs=EPOCHS, lr=LR)
     return model, test_loader, label_to_id, id_to_label
 
@@ -274,6 +277,7 @@ def results_and_plot(model, test_loader, label_to_id, id_to_label):
 
     with torch.no_grad():
         for x_batch, y_batch in test_loader:
+            x_batch, y_batch = x_batch.to(DEVICE), y_batch.to(DEVICE)
             outputs, _, _ = model(x_batch)
             _, predicted = torch.max(outputs, 1)
             y_true.extend(y_batch.cpu().numpy().tolist())
