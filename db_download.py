@@ -141,10 +141,7 @@ def main():
     args = parser.parse_args()
 
     feature_data = FeatureData()
-    if args.local:
-        feature_data.features = feature_loading(feature_data=feature_data)
-    else:
-        feature_data.features = load_features_from_database_zip(feature_data=feature_data)
+    feature_data.features = load_features_from_database_zip(feature_data=feature_data)
 
 if __name__ == "__main__":
     main()

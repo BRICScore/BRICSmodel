@@ -45,8 +45,6 @@ class MeasurementDirectoryProvider:
             ----------
             A Path to the temporary directory containing the entire archive. 
         """
-        print("Unpacking measurement zip archive...")
-        print(f"Archive path: {MEASUREMENT_ZIP_PATH}")
         folder_path = Path(tempfile.mkdtemp())
         shutil.unpack_archive(MEASUREMENT_ZIP_PATH, folder_path)
         return folder_path
