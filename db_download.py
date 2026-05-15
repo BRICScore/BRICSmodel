@@ -10,7 +10,7 @@ from typing import Optional
 from classifiers.specific_features_classifier import FeatureData
 from utils.measurement_dataset_control import MeasurementDatasetHook
 from utils.file_processing.measurement_data_builder import MeasurementDataBuilder
-from data_containers import MeasurementData
+from data_containers import MeasurementData, MeasurementMetadata
 import sys
 sys.path.append("utils")
 from config import *
@@ -18,7 +18,7 @@ from database_access.database_handler import *
 
 
 NO_OF_FEATURES_AFTER_ALG = 2
-FEATURES_PATH = './features'
+FEATURES_PATH = './data/features'
 
 def create_indices_for_features(feature_data, filepath):
     record = None
@@ -38,16 +38,27 @@ def create_indices_for_features(feature_data, filepath):
             feature_data.feature_keys[i] = key
             i += 1
 
-def load_features_from_database_zip(feature_data: FeatureData) -> np.ndarray:
+def load_features_from_database_zip(feature_data: FeatureData) -> tuple[np.ndarray, list]:
     combined_features: np.ndarray = np.array([])
     hook = MeasurementDatasetHook(target="features")
     measurement_data = MeasurementData()
     measurement_data_builder = MeasurementDataBuilder(measurement_data_container=measurement_data)
+    metadata_rows = []
     final_filepath: Optional[Path] = None
 
     first_go = True
     for filepath in hook:
         measurement_data_builder.build_data(filepath=filepath, target="features")
+        metadata_rows.append({
+            "person_id": measurement_data.metadata.labels.person_data.person_id,
+            "condition": measurement_data.metadata.labels.person_data.condition,
+            "activity": measurement_data.metadata.labels.activity,
+            "timestamp": measurement_data.metadata.timestamp,
+            "duration_ms": measurement_data.metadata.duration_ms,
+            "filepath_raw": str(measurement_data.metadata.filepath_raw),
+            "filepath_clean": str(measurement_data.metadata.filepath_clean),
+            "filepath_features": str(measurement_data.metadata.filepath_features)
+        })
         current_file_features = []
         length = 0
         for key, value in measurement_data.data_features.__dict__.items():
@@ -85,7 +96,36 @@ def load_features_from_database_zip(feature_data: FeatureData) -> np.ndarray:
     if final_filepath:
         create_indices_for_features(feature_data=feature_data, filepath=final_filepath)
 
-    return np.array(combined_features[1:,:]) #skip the empty row
+    return np.array(combined_features[1:,:]), metadata_rows  #skip the empty row
+
+import json
+import re
+from pathlib import Path
+
+def get_feature_data(feature_data: FeatureData, metadata_rows: list):
+    feature_data_folder = Path(FEATURES_PATH)
+    feature_data_folder.mkdir(parents=True, exist_ok=True)
+
+    for row_index, row in enumerate(feature_data.features):
+        metadata = {}
+        # TODO: this is very temporary, for now db returns 3 different files per querry (for my id)
+        # and so i have to choose which metadata to use
+        # should there be only one file per querry or the 3 is normal?
+        metadata["person_id"] = metadata_rows[0]["person_id"]
+        metadata["condition"] = metadata_rows[0]["condition"]
+        metadata["activity"] = metadata_rows[0]["activity"]
+
+        record = {}
+        for feature_index, feature_name in feature_data.feature_keys.items():
+            value = row[feature_index]
+            if hasattr(value, "item"):
+                value = value.item()
+            record[feature_name] = value
+
+        out_path = feature_data_folder / f"features_{metadata['person_id']}_{row_index}.jsonl"
+        with out_path.open("w", encoding="utf-8") as f:
+            f.write(json.dumps(metadata) + "\n")
+            f.write(json.dumps(record) + "\n")
 
 def parser_setup():
     parser = argparse.ArgumentParser(description="Visualization work mode information")
@@ -104,8 +144,12 @@ def main():
     dbh.downloadMeasurement()
 
     feature_data = FeatureData()
-    feature_data.features = load_features_from_database_zip(feature_data=feature_data)
+    feature_data.features, metadata_rows = load_features_from_database_zip(feature_data=feature_data)
     # print(feature_data.features)
+
+    get_feature_data(feature_data=feature_data, metadata_rows=metadata_rows)
+
+
 
 if __name__ == "__main__":
     main()
