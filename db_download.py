@@ -2,6 +2,7 @@ import argparse
 import random
 import os
 import json
+import dotenv
 import numpy as np
 from pathlib import Path
 from typing import Optional
@@ -10,36 +11,14 @@ from classifiers.specific_features_classifier import FeatureData
 from utils.measurement_dataset_control import MeasurementDatasetHook
 from utils.file_processing.measurement_data_builder import MeasurementDataBuilder
 from data_containers import MeasurementData
+import sys
+sys.path.append("utils")
+from config import *
+from database_access.database_handler import *
+
 
 NO_OF_FEATURES_AFTER_ALG = 2
 FEATURES_PATH = './features'
-
-def parse_features_line(line, feature_data, filename):
-    feature_vector = []
-    temp = filename.split('_')
-    person = temp[2][:2]
-    for key in line:
-        if isinstance(line[key], list):
-            for val in line[key]:
-                feature_vector.append(val)
-        elif isinstance(line[key], str):
-            # print(f"{line[key]}")
-            person = line[key]
-        else:
-            feature_vector.append(line[key])
-    if person not in feature_data.person_initials:
-        feature_data.person_initials.append(person)
-        color = random.randrange(0, 2**24)
-        hex_color = hex(color)
-        color_part = hex_color[2:]
-        while len(color_part) < 6:
-                color_part = "0" + color_part
-        rand_color = "#" + color_part
-        feature_data.person_colors[person] = rand_color
-        feature_data.person_indices[person] = []
-    feature_data.person_indices[person].append(feature_data.feature_index)
-    feature_data.feature_index += 1
-    return feature_vector
 
 def create_indices_for_features(feature_data, filepath):
     record = None
@@ -58,26 +37,6 @@ def create_indices_for_features(feature_data, filepath):
         else:
             feature_data.feature_keys[i] = key
             i += 1
-
-def feature_loading(feature_data):
-    features = []
-    last_filename: str = 'extracted_features.jsonl'
-    with os.scandir(FEATURES_PATH) as es:
-        for e in es:
-            print(e.name)
-            if e.is_file() and e.name.endswith('.jsonl'):
-                last_filename = e.name
-                with open(e.path, encoding='utf-8') as file:
-                    record = file.readline()
-                    while record:
-                        json_record = json.loads(record)
-                        feature_vector = parse_features_line(json_record, feature_data, e.name)
-                        features.append(feature_vector)
-                        record = file.readline()
-    feature_data.feature_count = len(features[0])
-    feature_data.person_colors = {"JD": "orange", "MJ": "green", "MK": "blue", "DS": "red"} ###########TODO############
-    create_indices_for_features(feature_data, FEATURES_PATH+'/'+last_filename)
-    return np.array(features)
 
 def load_features_from_database_zip(feature_data: FeatureData) -> np.ndarray:
     combined_features: np.ndarray = np.array([])
@@ -140,8 +99,13 @@ def main():
     parser = parser_setup()
     args = parser.parse_args()
 
+    dotenv.load_dotenv()
+    dbh = DatabaseHandler()
+    dbh.downloadMeasurement()
+
     feature_data = FeatureData()
     feature_data.features = load_features_from_database_zip(feature_data=feature_data)
+    # print(feature_data.features)
 
 if __name__ == "__main__":
     main()
