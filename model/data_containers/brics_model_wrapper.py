@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 from pathlib import Path
 from typing import Optional
@@ -19,7 +20,16 @@ class BRICSModelWrapper:
         pass
 
     def save_model(self, filepath: Path): #TODO during model training
+        # firstly, save the self.parameters to "parameters.jsonl" + input/output sizes
+        # torch.save(model, PATH)
         pass
 
     def load_model(self, filepath: Path = Path("../model/model.pt")): #TODO during model training
+        # load input/output sizes and parameters from a separate file called "parameters.json"
+        # (try & except for the model input and output size) 
+        # (in case number of features or number of people differs in saved model)
+
+        # Model class must be defined somewhere
+        # model = torch.load(PATH, weights_only=False)
+        # model.eval()
         pass
