@@ -208,3 +208,5 @@ __marimo__/
 *.jsonl
 test.py
 .vscode/settings.json
+test_model_wraper.py
+*.pth
