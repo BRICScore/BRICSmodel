@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from pathlib import Path
 from typing import Optional
+from collections import Counter
 
 class BRICSModelWrapper:
     def __init__(self, model: nn.Module|None, learning_rate: float = 0.001) -> None:
@@ -22,9 +23,37 @@ class BRICSModelWrapper:
         else:
             return None
     
-    def identify_person(self, feedData):
-        # TODO: UI will call this, so we skip this for now
-        pass
+    def identify_person(self, input_file: Path):
+        if self.model is None:
+            raise ValueError("Model is not defined.")
+        
+        # to jest plik feature_data, który chcemy zidentyfikować
+        input_metadata = None
+        input_data = []
+        with open(input_file, "r") as f:
+            for line in f:
+                if input_metadata is None:
+                    input_metadata = json.loads(line)
+                else:
+                    input_data.append(json.loads(line))
+
+        # TODO: fix typing and return values when I can test it with real model (@tuniemanicku !!!)
+        results = []
+        for feature_line in input_data:
+            feature_line_tensor = torch.tensor(feature_line, dtype=torch.float32)
+            result = self.model(feature_line_tensor).softmax(dim=0).max(0)
+            results.append(result)
+            # funny python moment - oneliner
+            # results.append(self.model(torch.tensor(feature_line, dtype=torch.float32)).softmax(dim=0).max(0))
+        
+        most_common_label = Counter(results).most_common(1)
+
+        # print(input_metadata)
+        # print(input_data)
+        # print(results)
+        # print(most_common_label)
+
+        return most_common_label
 
     def save_model(self, filepath: Path):
         if self.model is None:
